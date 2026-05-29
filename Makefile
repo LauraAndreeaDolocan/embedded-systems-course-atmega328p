@@ -6,8 +6,8 @@ F_CPU = 16000000UL
 
 # Programmer Settings
 PROGRAMMER = arduino
-PORT = /dev/cu.usbserial-2140
-BAUD = 57600
+PORT = COM3
+BAUD = 115200
 # BAUD = 115200
 
 # Board Selection (default to nano)
