@@ -1,1 +1,213 @@
+//main
+#include "drivers/gpio/gpio.h"
+#include "drivers/timer/timer0.h"
+#include "drivers/pwm/pwm.h"
+#include "bsp/nano.h"
+#include "utils/delay.h"
+#define MASINA_ROSU   D3
+#define MASINA_GALBEN D4
+#define MASINA_VERDE  D5
+#define PIETON_ROSU   D6
+#define PIETON_VERDE  D7
+#define BUTON         D8
+#define BUZZER_SEMNAL D9
+#define BUZZER_ACTIV  D10
+#define NOTA_DO       261
+#define NOTA_RE       294
+#define NOTA_MI       329
+int main(void) {
+    Timer0_Init();
+    GPIO_Init(MASINA_ROSU, GPIO_OUTPUT);
+    GPIO_Init(MASINA_GALBEN, GPIO_OUTPUT);
+    GPIO_Init(MASINA_VERDE, GPIO_OUTPUT);
+    GPIO_Init(PIETON_ROSU, GPIO_OUTPUT);
+    GPIO_Init(PIETON_VERDE, GPIO_OUTPUT);
+    GPIO_Init(BUZZER_ACTIV, GPIO_OUTPUT);
+    GPIO_Init(BUTON, GPIO_INPUT);
+    PWM_Init(BUZZER_SEMNAL, NOTA_DO);
+    PWM_SetDutyCycle(BUZZER_SEMNAL, 0);
+    GPIO_Write(MASINA_VERDE, GPIO_HIGH);
+    GPIO_Write(MASINA_GALBEN, GPIO_LOW);
+    GPIO_Write(MASINA_ROSU, GPIO_LOW);
+    GPIO_Write(PIETON_VERDE, GPIO_LOW);
+    GPIO_Write(PIETON_ROSU, GPIO_HIGH);
+    GPIO_Write(BUZZER_ACTIV, GPIO_LOW);
+    while (1) {
+        if (GPIO_Read(BUTON) == GPIO_HIGH) {
+            Delay(50);
+            if (GPIO_Read(BUTON) == GPIO_HIGH) {
+                GPIO_Write(MASINA_VERDE, GPIO_HIGH);
+                GPIO_Write(MASINA_GALBEN, GPIO_LOW);
+                GPIO_Write(MASINA_ROSU, GPIO_LOW);
+                GPIO_Write(PIETON_VERDE, GPIO_LOW);
+                GPIO_Write(PIETON_ROSU, GPIO_HIGH);
+                Delay(5000);
+                GPIO_Write(MASINA_VERDE, GPIO_LOW);
+                GPIO_Write(MASINA_GALBEN, GPIO_HIGH);
+                GPIO_Write(MASINA_ROSU, GPIO_LOW);
+                GPIO_Write(PIETON_VERDE, GPIO_LOW);
+                GPIO_Write(PIETON_ROSU, GPIO_HIGH);
+                Delay(5000);
+                GPIO_Write(MASINA_VERDE, GPIO_LOW);
+                GPIO_Write(MASINA_GALBEN, GPIO_LOW);
+                GPIO_Write(MASINA_ROSU, GPIO_HIGH);
+                GPIO_Write(PIETON_ROSU, GPIO_LOW);
+                GPIO_Write(PIETON_VERDE, GPIO_HIGH);
+                GPIO_Write(BUZZER_ACTIV, GPIO_HIGH);
+                for (int i = 0; i < 3; i++) {
+                    PWM_Init(BUZZER_SEMNAL, NOTA_DO);
+                    PWM_SetDutyCycle(BUZZER_SEMNAL, 50);
+                    Delay(500);
+                    PWM_Init(BUZZER_SEMNAL, NOTA_RE);
+                    PWM_SetDutyCycle(BUZZER_SEMNAL, 50);
+                    Delay(500);
+                    PWM_Init(BUZZER_SEMNAL, NOTA_MI);
+                    PWM_SetDutyCycle(BUZZER_SEMNAL, 50);
+                    Delay(500);
+                    PWM_SetDutyCycle(BUZZER_SEMNAL, 0);
+                    Delay(1500);
+                }
+                GPIO_Write(BUZZER_ACTIV, GPIO_LOW);
+                PWM_SetDutyCycle(BUZZER_SEMNAL, 0);
+                GPIO_Write(MASINA_VERDE, GPIO_HIGH);
+                GPIO_Write(MASINA_GALBEN, GPIO_LOW);
+                GPIO_Write(MASINA_ROSU, GPIO_LOW);
+                GPIO_Write(PIETON_VERDE, GPIO_LOW);
+                GPIO_Write(PIETON_ROSU, GPIO_HIGH);
+            }
+        }
+    }
+}
+//make file
+# Makefile for ATmega328P Project
+
+# Microcontroller Settings
+MCU = atmega328p
+F_CPU = 16000000UL
+
+# Programmer Settings
+PROGRAMMER = arduino
+PORT = COM3
+BAUD = 115200
+# BAUD = 115200
+
+# Board Selection (default to nano)
+BOARD ?= nano
+
+# Compiler Settings
+CC = avr-gcc
+OBJCOPY = avr-objcopy
+AVRDUDE = avrdude
+
+# avr-gcc on this setup needs an explicit prefix so it can find its device specs.
+AVR_GCC_ROOT = $(subst /device-specs/specs-atmega328p,,$(shell $(CC) -print-file-name=device-specs/specs-atmega328p))
+
+# Directories
+OBJDIR = obj
+BINDIR = bin
+
+# Compiler Flags
+CFLAGS = -mmcu=$(MCU) -DF_CPU=$(F_CPU) -Os -Wall -Wextra -std=gnu99
+CFLAGS += -B"$(AVR_GCC_ROOT)"
+CFLAGS += -I. -Idrivers/gpio -Idrivers/interrupt -Idrivers/timer -Idrivers/eeprom -Idrivers/adc -Ibsp -Iutils -Idrivers/usart
+
+ifeq ($(BOARD), nano)
+    CFLAGS += -DBOARD_NANO
+else ifeq ($(BOARD), uno)
+    CFLAGS += -DBOARD_UNO
+else
+    $(error Invalid BOARD specified. Use 'nano' or 'uno')
+endif
+
+# Source Files
+SRC = src/main.c drivers/gpio/gpio.c drivers/interrupt/external_interrupt.c drivers/timer/timer0.c drivers/timer/timer1.c drivers/timer/timer2.c drivers/pwm/pwm.c drivers/eeprom/eeprom.c drivers/adc/adc.c utils/delay.c  drivers/usart/usart.c
+
+# Object Files
+# Replace .c extension w  ith .o and prepend OBJDIR, keeping directory structure
+OBJ = $(patsubst %.c,$(OBJDIR)/%.o,$(SRC))
+
+# Target Name
+TARGET = $(BINDIR)/main
+
+# Rules
+all: directories $(TARGET).hex
+
+directories:
+	@if not exist $(BINDIR) mkdir $(BINDIR)
+	@if not exist $(OBJDIR)\src mkdir $(OBJDIR)\src
+	@if not exist $(OBJDIR)\drivers\gpio mkdir $(OBJDIR)\drivers\gpio
+	@if not exist $(OBJDIR)\drivers\interrupt mkdir $(OBJDIR)\drivers\interrupt
+	@if not exist $(OBJDIR)\drivers\timer mkdir $(OBJDIR)\drivers\timer
+	@if not exist $(OBJDIR)\drivers\eeprom mkdir $(OBJDIR)\drivers\eeprom
+	@if not exist $(OBJDIR)\drivers\adc mkdir $(OBJDIR)\drivers\adc
+	@if not exist $(OBJDIR)\drivers\usart mkdir $(OBJDIR)\drivers\usart
+	@if not exist $(OBJDIR)\utils mkdir $(OBJDIR)\utils
+
+$(TARGET).elf: $(OBJ)
+	$(CC) $(CFLAGS) -o $@ $^
+
+$(TARGET).hex: $(TARGET).elf
+	$(OBJCOPY) -O ihex -R .eeprom $< $@
+
+$(OBJDIR)/%.o: %.c
+	@if not exist $(subst /,\\,$(dir $@)) mkdir $(subst /,\\,$(dir $@))
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+flash: $(TARGET).hex
+	$(AVRDUDE) -v -p $(MCU) -c $(PROGRAMMER) -P $(PORT) -b $(BAUD) -D -U flash:w:$<:i
+
+clean:
+	@if exist $(OBJDIR) rmdir /S /Q $(OBJDIR)
+	@if exist $(BINDIR) rmdir /S /Q $(BINDIR)
+
+# Test Runner Rule (Host GCC)
+# Compiles test_gpio.c + registers.c
+test_gpio: directories
+	@mkdir -p $(BINDIR)/test
+	gcc -I. -Isrc -Idrivers/gpio -Idrivers/interrupt -Idrivers/timer -Idrivers/eeprom -Idrivers/adc -Ibsp -Iutils -Itest -Itest/mocks -DUNIT_TEST -o $(BINDIR)/test/test_gpio test/test_gpio.c test/mocks/registers.c
+	@echo "Running GPIO Tests..."
+	@./$(BINDIR)/test/test_gpio
+
+test_pwm: directories
+	@mkdir -p $(BINDIR)/test
+	gcc -I. -Isrc -Idrivers/gpio -Idrivers/interrupt -Idrivers/timer -Idrivers/eeprom -Idrivers/adc -Ibsp -Iutils -Itest -Itest/mocks -DUNIT_TEST -o $(BINDIR)/test/test_pwm test/test_pwm.c drivers/timer/timer1.c drivers/timer/timer2.c test/mocks/registers.c
+	@echo "Running PWM Tests..."
+	@./$(BINDIR)/test/test_pwm
+
+test_pwm_wrapper: directories
+	@mkdir -p $(BINDIR)/test
+	gcc -I. -Isrc -Idrivers/gpio -Idrivers/interrupt -Idrivers/timer -Idrivers/pwm -Idrivers/eeprom -Idrivers/adc -Ibsp -Iutils -Itest -Itest/mocks -DUNIT_TEST -o $(BINDIR)/test/test_pwm_wrapper test/test_pwm_wrapper.c drivers/timer/timer1.c drivers/timer/timer2.c drivers/pwm/pwm.c test/mocks/registers.c
+	# Run all tests
+test: test_gpio test_pwm test_pwm_wrapper
+	@echo "All tests passed!"
+
+# Code Coverage Target
+coverage: directories
+	@mkdir -p $(BINDIR)/coverage
+	@echo "Compiling for Coverage..."
+	# Compile objects separately to ensure .gcno files are named correctly
+	gcc --coverage -O0 -c -I. -Isrc -Idrivers/gpio -Idrivers/interrupt -Idrivers/timer -Idrivers/eeprom -Idrivers/adc -Ibsp -Iutils -Itest -Itest/mocks -DUNIT_TEST -o $(BINDIR)/coverage/test_gpio.o test/test_gpio.c
+	gcc --coverage -O0 -c -I. -Isrc -Itest/mocks -DUNIT_TEST -o $(BINDIR)/coverage/registers.o test/mocks/registers.c
+	# Link
+	gcc --coverage -O0 -o $(BINDIR)/coverage/test_gpio_cov $(BINDIR)/coverage/test_gpio.o $(BINDIR)/coverage/registers.o
+	@echo "Running Tests to generate profile data..."
+	@./$(BINDIR)/coverage/test_gpio_cov
+	@echo "Generating GCOV reports..."
+	# Run gcov on the object file
+	gcov -o $(BINDIR)/coverage/test_gpio.o test/test_gpio.c
+	# Move gcov files to coverage dir
+	mv *.gcov $(BINDIR)/coverage/
+
+# HTML Coverage Report (Requires lcov)
+coverage-html: coverage
+	@mkdir -p $(BINDIR)/coverage/html
+	@echo "Capturing LCOV data..."
+	lcov --capture --directory $(BINDIR)/coverage --base-directory . --output-file $(BINDIR)/coverage/coverage.info --ignore-errors unsupported
+	@echo "Filtering unwanted files (system libraries, tests, mocks)..."
+	lcov --remove $(BINDIR)/coverage/coverage.info '/usr/*' 'test/*' 'utils/*' --output-file $(BINDIR)/coverage/coverage_cleaned.info --ignore-errors unused,unsupported
+	@echo "Generating HTML report..."
+	genhtml $(BINDIR)/coverage/coverage_cleaned.info --output-directory $(BINDIR)/coverage/html --ignore-errors unsupported
+	@echo "Report generated at $(BINDIR)/coverage/html/index.html"
+
+.PHONY: all flash clean directories test coverage coverage-html
 
